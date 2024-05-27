@@ -15,6 +15,6 @@ func assertComparison(title string, check bool) bool {
 		fmt.Printf("Comparison %s is false \n", title)
 		panic("something went wrong check the log")
 	}
-	fmt.Printf("Comparison %s is true \n", title)
+	fmt.Println(title)
 	return true
 }
