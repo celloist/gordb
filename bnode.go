@@ -102,19 +102,49 @@ func leafInsert(new BNode, old BNode, idx uint16, key []byte, val []byte) {
 	nodeAppendRange(new, old, idx+1, idx, old.nkeys()-idx)
 }
 
-func nodeAppendKv(new BNode, idx, ptr uint16, key []byte, val []byte) {
-	panic("unimplemented")
+// todo
+func leafUpdate(new BNode, old BNode, idx uint16, key []byte, val []byte) {
+	new.setHeader(BNODE_LEAF, old.nkeys()+1)
+	nodeAppendRange(new, old, 0, 0, idx)
+	nodeAppendKv(new, idx, 0, key, val)
+	nodeAppendRange(new, old, idx+1, idx, old.nkeys()-idx)
 }
 
+// copy multiple kv into positions
 func nodeAppendRange(new, old BNode, dstNew, srcOld, n uint16) {
 	assertComparison("nodeAppendRange check old", (srcOld+n <= old.nkeys()))
 	assertComparison("nodeAppendRange check new", (dstNew+n <= new.nkeys()))
 
-	if n== 0 {
+	if n == 0 {
 		return
 	}
 
-	for i := uint16(0); i <n; i++ {
-		new.setPtr(dstNew+i,old.getPtr(srcOld+i))
+	for i := uint16(0); i < n; i++ {
+		new.setPtr(dstNew+i, old.getPtr(srcOld+i))
 	}
+
+	dstBegin := new.getOffset(dstNew)
+	srcBegin := old.getOffset(srcOld)
+
+	for i := uint16(1); i <= n; i++ {
+		offset := dstBegin + old.getOffset(srcOld+1) - srcBegin
+		new.setOffset(dstNew+i, offset)
+	}
+
+	begin := old.kvPos(srcOld)
+	end := old.kvPos(srcOld + n)
+	copy(new.data[new.kvPos(dstNew):], old.data[begin:end])
+}
+
+// copy kv into position
+func nodeAppendKv(new BNode, idx uint16, ptr uint64, key, val []byte) {
+	new.setPtr(idx, ptr)
+
+	pos := new.kvPos(idx)
+	binary.LittleEndian.PutUint16(new.data[pos+0:], uint16(len(key)))
+	binary.LittleEndian.PutUint16(new.data[pos+2:], uint16(len(val)))
+
+	copy(new.data[pos+4:], key)
+	copy(new.data[pos+4+uint16(len(key)):], val)
+	new.setOffset(idx+1, new.getOffset(idx)+4+uint16(len(key)+len(val)))
 }
